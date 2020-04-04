@@ -30,10 +30,9 @@ def save_wiseman_params(params: WisemanParameters):
 
 
 def __load_saves__(dirname: str) -> tuple:
-    k = np.load(dirname + k_file)
-    n = np.load(dirname + n_file)
-    delta_h = np.load(dirname + deltah_file)
-    # logging.info(f'loading from {dirname}: k={k}, n={n}, delta_h={delta_h}.')
+    k = np.load(dirname + k_file, allow_pickle=True)
+    n = np.load(dirname + n_file, allow_pickle=True)
+    delta_h = np.load(dirname + deltah_file, allow_pickle=True)
     return k, n, delta_h
 
 
@@ -42,4 +41,3 @@ def __save_params__(k: np.ndarray, n: np.ndarray, delta_h: np.ndarray, dirname: 
     k.dump(dirname + k_file)
     n.dump(dirname + n_file)
     delta_h.dump(dirname + deltah_file)
-    # logging.info(f'saving to {dirname}: k={k}, n={n}, delta_h={delta_h}.')
