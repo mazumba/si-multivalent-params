@@ -1,5 +1,7 @@
 # SI: Parameter estimation on multivalent ITC datasets
 
+Uncomment the code in main.py to start the algorithm.
+
 ## About 
 This ist the source code of the algorithm used for the paper. 
 The code is written in python 3.7. ITC datasets, saved as EXCEL tables, are extracted and fitted by 
