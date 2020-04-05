@@ -11,7 +11,7 @@ class QcParameters:
         self.dirname = dirname + self.prefix
 
     def print(self):
-        print(f'Qc parameters:\nk: {self.k}, n: {self.n}, delta_h: {self.delta_h}')
+        print(f'    Qc parameters:\n        k: {self.k}, n: {self.n}, delta_h: {self.delta_h}')
 
 
 class WisemanParameters:
@@ -24,4 +24,4 @@ class WisemanParameters:
         self.dirname = dirname + self.prefix
 
     def print(self):
-        print(f'Wiseman parameters:\nk: {self.k}, n: {self.n}, delta_h: {self.delta_h}')
+        print(f'    Wiseman parameters:\n        k: {self.k}, n: {self.n}, delta_h: {self.delta_h}')

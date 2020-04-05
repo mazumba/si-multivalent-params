@@ -9,7 +9,7 @@ class ErlekamController(AbstractController):
     def process_tri_tetra_wiseman() -> float:
         dirname = 'tri_tetra'
         return AbstractController.__process_wiseman__(dirname, Importer.__extract_man1355llbb25__(),
-                                                      InitializeFactory.initialize_wiseman_by(dirname), 0.3)
+                                                      InitializeFactory.initialize_wiseman_by(dirname))
 
     @staticmethod
     def process_tri_tetra_q_c(norm_to_beat: float):
@@ -19,13 +19,13 @@ class ErlekamController(AbstractController):
         except IOError:
             params = InitializeFactory.initialize_qc_by(dirname)
         AbstractController.__process_qc__(dirname, Importer.__extract_man1355llbb25__(), params,
-                                          QService.const_trival, norm_to_beat, 0.3)
+                                          QService.const_trival, norm_to_beat)
 
     @staticmethod
     def process_deca_bi_wiseman() -> float:
         dirname = 'deca_bi'
         return AbstractController.__process_wiseman__(dirname, Importer.__extract_man1010lacetate2__(),
-                                                      InitializeFactory.initialize_wiseman_by(dirname), 0.2)
+                                                      InitializeFactory.initialize_wiseman_by(dirname))
 
     @staticmethod
     def process_deca_bi_q_c(norm_to_beat: float):
@@ -35,4 +35,4 @@ class ErlekamController(AbstractController):
         except IOError:
             params = InitializeFactory.initialize_qc_by(dirname)
         AbstractController.__process_qc__(dirname, Importer.__extract_man1010lacetate2__(), params,
-                                          QService.const_bval, norm_to_beat, 0.2)
+                                          QService.const_bval, norm_to_beat)

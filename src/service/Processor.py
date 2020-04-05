@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
+
+import config
 import src.service.QService as QService
-from src.Exceptions import NegativeValueError, NormValueTooLargeError
+from src.Exceptions import NormValueTooLargeError
 from src.entity.ExtractCollection import ExtractCollection
 from src.entity.ResultCollection import QcResultCollection
 from src.service.Wiseman import Wiseman
@@ -11,26 +13,26 @@ from scipy.stats import norm
 
 
 class Processor:
-    def __init__(self, extract: ExtractCollection, gauss_pos: float):
+    def __init__(self, extract: ExtractCollection):
         self.extract_collection = extract
-        self.scale = np.abs(
-            gauss_pos - np.max(self.extract_collection.molar_ratio) + np.min(self.extract_collection.molar_ratio)) / 4
-        # self.gaussian = norm.pdf(self.extract_collection.molar_ratio, gauss_pos, self.scale)
-        # OR
         self.gaussian = np.ones(len(self.extract_collection.molar_ratio))
+        self.omit_first = False
+
+    def settings(self, dirname: str):
+        configure = config.get_settings(dirname)
+        if configure['gaussian']:
+            self.__set_gaussian__(configure['gaussian'])
+        self.__set_omit_first__(configure['omit'])
+        print(f'    Omit first injection: {self.omit_first}')
+        print('    Gaussian distribution:')
+        print(f'        {self.gaussian}')
 
     def calculate_norm(self, array_a: np.ndarray, array_b: np.ndarray) -> float:
-        # self.gaussian = np.ones(len(self.extract_collection.molar_ratio))
-        # return self.calculate_norm_omit(array_a, array_b)
+        if self.omit_first:
+            return np.linalg.norm(self.gaussian[1:] * (array_a[1:] - array_b[1:]))
         return np.linalg.norm(self.gaussian * (array_a - array_b))
 
-    def calculate_norm_omit(self, array_a: np.ndarray, array_b: np.ndarray) -> float:
-        return np.linalg.norm(self.gaussian[1:] * (array_a[1:] - array_b[1:]))
-
     def calculate_error(self, array_a: np.ndarray, array_b: np.ndarray) -> np.ndarray:
-        return np.abs(self.gaussian * (array_a - array_b))
-
-    def calculate_error_omit(self, array_a: np.ndarray, array_b: np.ndarray) -> np.ndarray:
         return np.abs(self.gaussian * (array_a - array_b))
 
     @staticmethod
@@ -43,17 +45,23 @@ class Processor:
         tmp = lt_mt + 1 / (m_t * k)
         return 0.5 * (1 + (n - tmp) / np.sqrt((n + tmp) * (n + tmp) - 4 * n * lt_mt)) * delta_h
 
+    def __set_gaussian__(self, mean):
+        sigma = np.abs(
+            mean - np.max(self.extract_collection.molar_ratio) + np.min(self.extract_collection.molar_ratio)) / 4
+        self.gaussian = norm.pdf(self.extract_collection.molar_ratio, mean, sigma)
+
+    def __set_omit_first__(self, omit: bool):
+        self.omit_first = omit
+
 
 class QcProcessor(Processor):
-    def __init__(self, extract: ExtractCollection, gauss_pos: float, matrix_key: str, result: QcResultCollection,
-                 norm_to_beat: float):
-        super().__init__(extract, gauss_pos)
+    def __init__(self, extract: ExtractCollection, matrix_key: str, result: QcResultCollection, norm_to_beat: float):
+        super().__init__(extract)
         self.matrix_key = matrix_key
         self.extract_collection = extract
         self.result_collection = result
         self.norm_to_beat = norm_to_beat
-        # self.norm_threshold = 10 * norm_to_beat / 3
-        self.norm_threshold = 30
+        self.norm_threshold = 10 * norm_to_beat / 3
 
     def calculate_kds_new(self, k: np.ndarray, n: float):
         # Calculate the first kd, where [L] = (L_t)_1.
@@ -84,12 +92,13 @@ class QcProcessor(Processor):
                          options={'disp': False, 'maxiter': 1e+3, 'maxfev': 1e+4, 'return_all': True, 'adaptive': True}
                          )
         if not f_min.success:
-            print('Optimizing of delta_h failed.')
-            print(f'         Current function value: {f_min["fun"]}')
-            print(f'         Iterations: {f_min["nit"]}')
-            print(f'         Function evaluations: {f_min["nfev"]}')
+            print('    Optimizing of delta_h failed.')
+            print(f'        Current function value: {f_min["fun"]}')
+            print(f'        Iterations: {f_min["nit"]}')
+            print(f'        Function evaluations: {f_min["nfev"]}')
         if calc_norm <= self.norm_to_beat:
-            print(f'Initial norm: {calc_norm} | Resulting norm: {f_min["fun"]}')
+            print('    Nelder-Mead optimization of n and delta_h:')
+            print(f'    Current norm: {f_min["fun"]}')
         return f_min.x
 
     def __fitting_func__(self, x0: np.ndarray, args: list):
@@ -107,8 +116,6 @@ class QcProcessor(Processor):
         l_t = self.extract_collection.l_t
         m_x_l = self.extract_collection.lt_x_mt
         con = l_t - self.calculate_lb(1 / optimal_kas, n, m_t, l_t, m_x_l)
-        # if np.min(con) < 0:
-        #     raise NegativeValueError('Concentration value has to be positive.')
         for inj in range(0, len(l_t)):
             k_on, k_off = QService.calc_kon_and_koff(k, con[inj], self.matrix_key)
             self.result_collection.set_kd(k_on, k_off, inj)
@@ -119,11 +126,12 @@ class QcProcessor(Processor):
 
 
 class WisemanProcessor(Processor):
-    def __init__(self, extract: ExtractCollection, gauss_pos: float, wiseman: Wiseman):
-        super().__init__(extract, gauss_pos)
+    def __init__(self, extract: ExtractCollection, wiseman: Wiseman):
+        super().__init__(extract)
         self.wiseman = wiseman
 
     def fit_to_heat_per_inj(self):
+        print('    Nelder-Mead Optimization:')
         f_min = minimize(self.__fitting_func__,
                          x0=self.__get_x0__(),
                          args=self.__get_args__(),
@@ -131,9 +139,9 @@ class WisemanProcessor(Processor):
                          options={'disp': True, 'maxfev': 1e+6, 'maxiter': 1e+6, 'return_all': True, 'adaptive': True}
                          )
         if not f_min.success:
-            print('         Current function value: ' + str(f_min['fun']))
-            print('         Iterations: ' + str(f_min['nit']))
-            print('         Function evaluations: ' + str(f_min['nfev']))
+            print('        Current function value: ' + str(f_min['fun']))
+            print('        Iterations: ' + str(f_min['nit']))
+            print('        Function evaluations: ' + str(f_min['nfev']))
         self.wiseman.update_data(f_min.x[0], f_min.x[1], f_min.x[2])
 
     def __fitting_func__(self, x0: np.ndarray, args: list):
